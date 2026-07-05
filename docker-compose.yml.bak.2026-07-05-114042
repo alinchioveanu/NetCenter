@@ -1,0 +1,16 @@
+services:
+  netcenter:
+    build: .
+    container_name: netcenter
+    restart: unless-stopped
+
+    ports:
+      - "8099:5000"
+
+    volumes:
+      - ./app:/app
+      - /etc/dnsmasq.d:/etc/dnsmasq.d
+      - /var/lib/misc:/var/lib/misc:ro
+
+    environment:
+      TZ: Europe/Bucharest

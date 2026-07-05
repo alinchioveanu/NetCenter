@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="ro">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rezervare DHCP</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }</style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+    <div class="card shadow-sm">
+        <div class="card-header"><strong>{% if edit %}Editare rezervare{% else %}Rezervare DHCP{% endif %}</strong></div>
+        <div class="card-body">
+            <form method="post" action="/save">
+                <div class="mb-3">
+                    <label class="form-label">Hostname</label>
+                    <input class="form-control" name="hostname" value="{{ lease.hostname }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">IP</label>
+                    <input class="form-control mono" name="ip" value="{{ lease.ip }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">MAC</label>
+                    <input class="form-control mono" name="mac" value="{{ lease.mac }}" required {% if edit %}readonly{% endif %}>
+                </div>
+                <button class="btn btn-primary">Salvează</button>
+                <a href="/" class="btn btn-secondary">Înapoi</a>
+            </form>
+        </div>
+    </div>
+</div>
+</body>
+</html>
