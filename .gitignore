@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+
+*.bak
+*.bak.*
+app.bak.*
+
+netcenter.zip
+
+.env
+
+.vscode/
+.idea/
