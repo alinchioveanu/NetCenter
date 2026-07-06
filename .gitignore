@@ -11,3 +11,8 @@ netcenter.zip
 
 .vscode/
 .idea/
+
+# Runtime data
+app/data/
+__pycache__/
+*.pyc

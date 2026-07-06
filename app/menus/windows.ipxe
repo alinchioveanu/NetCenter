@@ -1,0 +1,33 @@
+#!ipxe
+
+:windows
+menu Windows
+
+item win11     Windows 11 Setup
+item win10     Windows 10 Setup
+item winpe     Windows PE
+item back      Inapoi
+
+choose target || goto main
+goto ${target}
+
+:win11
+echo Windows 11 Setup - in curs de configurare
+prompt
+goto windows
+
+:win10
+echo Windows 10 Setup - in curs de configurare
+prompt
+goto windows
+
+:winpe
+echo Windows PE - in curs de configurare
+prompt
+goto windows
+
+:back
+chain http://192.168.100.110:8099/boot.ipxe
+
+:main
+chain http://192.168.100.110:8099/boot.ipxe

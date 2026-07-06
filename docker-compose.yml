@@ -13,6 +13,7 @@ services:
       - /run/systemd:/run/systemd
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
       - /usr/local/bin/netcenter-dnsmasq:/usr/local/bin/netcenter-dnsmasq:ro
+      - /mnt/8tb/SOFTWARE/IMAGES:/images:ro
     environment:
       TZ: Europe/Bucharest
       RESERVATIONS_FILE: /etc/dnsmasq.d/20-reservations.conf

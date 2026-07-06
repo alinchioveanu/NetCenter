@@ -1,0 +1,31 @@
+#!ipxe
+
+:main
+menu NetCenter PXE
+
+item windows     Windows
+item linux       Linux Live
+item rescue      Rescue & Recovery
+item utilities   Utilities
+item local       Boot local
+
+choose target || goto cancel
+goto ${target}
+
+:windows
+chain http://192.168.100.110:8099/menu/windows.ipxe
+
+:linux
+chain http://192.168.100.110:8099/menu/linux.ipxe
+
+:rescue
+chain http://192.168.100.110:8099/menu/rescue.ipxe
+
+:utilities
+chain http://192.168.100.110:8099/menu/utilities.ipxe
+
+:local
+exit
+
+:cancel
+exit

@@ -13,13 +13,18 @@
 </head>
 <body>
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="mb-0">NetCenter</h2>
-            <div class="text-muted">Administrare locală DHCP / dnsmasq</div>
-        </div>
-        <a href="/new" class="btn btn-primary">+ Adaugă rezervare</a>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-0">NetCenter</h2>
+        <div class="text-muted">Administrare PXE • DHCP • Boot Images</div>
     </div>
+
+    <div class="btn-group">
+        <a href="/" class="btn btn-outline-primary">Dashboard</a>
+        <a href="/images" class="btn btn-outline-primary">Boot Images</a>
+        <a href="/new" class="btn btn-primary">+ Rezervare</a>
+    </div>
+</div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}

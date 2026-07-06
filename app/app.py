@@ -1,12 +1,15 @@
-from flask import Flask, flash, redirect, render_template, request, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for, Response, send_from_directory
 
 from dnsmasq import DnsmasqManager
+from routes.boot import boot
+from database import init_db
 
 app = Flask(__name__)
 app.secret_key = "netcenter-local-only"
+app.register_blueprint(boot)
 
 dns = DnsmasqManager()
-
+init_db()
 
 @app.route("/")
 def index():
@@ -35,6 +38,45 @@ def index():
         },
     )
 
+@app.route("/images")
+def images():
+    from database import get_db
+
+    conn = get_db()
+
+    images = conn.execute("""
+        SELECT *
+        FROM boot_images
+        ORDER BY
+            category,
+            sort_order,
+            name
+    """).fetchall()
+
+    conn.close()
+
+    return render_template(
+        "images.html",
+        images=images
+    )
+
+
+@app.route("/scan")
+def scan():
+    from services.library import scan_library
+
+    images = scan_library()
+
+    return {
+        "count": len(images),
+        "images": images,
+    }
+
+@app.route("/sync")
+def sync():
+    from services.library import sync_library
+
+    return sync_library()
 
 @app.route("/reserve", methods=["POST"])
 def reserve():
@@ -50,6 +92,45 @@ def reserve():
 
     return render_template("reserve.html", lease=lease, edit=bool(reservation))
 
+@app.route("/menugen/<category>")
+def menugen(category):
+    from services.menu_generator import get_menu
+
+    rows = get_menu(category)
+
+    lines = [
+        "#!ipxe",
+        "",
+        f":{category}",
+        f"menu {category}",
+        "",
+    ]
+
+    for row in rows:
+        lines.append(f"item boot{row['id']} {row['name']}")
+
+    lines.extend([
+        "",
+        "choose target || goto cancel",
+        "goto ${target}",
+        "",
+    ])
+
+    for row in rows:
+        lines.extend([
+            f":boot{row['id']}",
+            f"echo Boot: {row['name']}",
+            "prompt",
+            f"goto {category}",
+            "",
+        ])
+
+    lines.extend([
+        ":cancel",
+        "exit",
+    ])
+
+    return "\n".join(lines), 200, {"Content-Type": "text/plain"}
 
 @app.route("/new")
 def new_reservation():
@@ -75,6 +156,17 @@ def delete():
     flash(message, "success" if success else "danger")
     return redirect(url_for("index"))
 
+@app.route("/ipxe/<path:filename>")
+def ipxe_files(filename):
+    return send_from_directory("/app/ipxe", filename)
+
+@app.route("/menu/<path:filename>")
+def menu_files(filename):
+    return send_from_directory("/app/menus", filename)
+
+@app.route("/boot.ipxe")
+def boot_ipxe():
+    return send_from_directory("/app/menus", "main.ipxe", mimetype="text/plain")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
