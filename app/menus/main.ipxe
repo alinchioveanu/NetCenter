@@ -1,0 +1,31 @@
+#!ipxe
+
+:main
+menu NetCenter PXE
+
+item windows     Windows
+item linux       Linux Live
+item rescue      Rescue & Recovery
+item utilities   Utilities
+item local       Boot local
+
+choose target || goto cancel
+goto ${target}
+
+:windows
+chain ${BOOT_SERVER}/menu/Windows
+
+:linux
+chain ${BOOT_SERVER}/menu/Linux
+
+:rescue
+chain ${BOOT_SERVER}/menu/Rescue
+
+:utilities
+chain ${BOOT_SERVER}/menu/Utilities
+
+:local
+exit
+
+:cancel
+exit

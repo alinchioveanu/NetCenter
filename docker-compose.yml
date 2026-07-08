@@ -1,0 +1,23 @@
+services:
+  netcenter:
+    build: .
+    container_name: netcenter
+    restart: unless-stopped
+    ports:
+      - "8099:5000"
+    volumes:
+      - ./app:/app
+      - /etc/dnsmasq.d:/etc/dnsmasq.d
+      - /var/lib/misc:/var/lib/misc:ro
+      - /etc/dnsmasq.conf:/etc/dnsmasq.conf:ro
+      - /run/systemd:/run/systemd
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+      - /usr/local/bin/netcenter-dnsmasq:/usr/local/bin/netcenter-dnsmasq:ro
+      - /mnt/8tb/SOFTWARE/IMAGES:/images:ro
+    environment:
+      TZ: Europe/Bucharest
+      RESERVATIONS_FILE: /etc/dnsmasq.d/20-reservations.conf
+      LEASES_FILE: /var/lib/misc/dnsmasq.leases
+      DNSMASQ_TEST_CMD: dnsmasq --test
+      DNSMASQ_RESTART_CMD: systemctl restart dnsmasq
+    privileged: true

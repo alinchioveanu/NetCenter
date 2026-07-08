@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.*
+
+# Runtime
+app/data/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+*.pid
+
+# Backups
+*.bak
+*.bak.*
+*~
+*.swp
+
+# Archives
+*.zip
+*.tar
+*.gz
+*.xz
+
+# Generated boot content
+app/boot/
+app/wimboot/
+
+# User libraries and scan results
+lab/
+images/
+isos/
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
