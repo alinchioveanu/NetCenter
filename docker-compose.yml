@@ -1,0 +1,25 @@
+services:
+  netcenter:
+    build: .
+    container_name: netcenter
+    restart: unless-stopped
+    ports:
+      - "8099:5000"
+    volumes:
+      - ./app:/app
+      - /etc/dnsmasq.d:/etc/dnsmasq.d
+      - /var/lib/misc:/var/lib/misc:ro
+      - /etc/dnsmasq.conf:/etc/dnsmasq.conf:ro
+      - /run/systemd:/run/systemd
+      - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
+      - /usr/local/bin/netcenter-dnsmasq:/usr/local/bin/netcenter-dnsmasq:ro
+      - ${IMAGES_PATH:-./images}:/images:ro
+    environment:
+      TZ: ${TZ:-UTC}
+      NETCENTER_BASE_URL: ${NETCENTER_BASE_URL:-http://127.0.0.1:8099}
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:-change-this-secret}
+      RESERVATIONS_FILE: /etc/dnsmasq.d/20-reservations.conf
+      LEASES_FILE: /var/lib/misc/dnsmasq.leases
+      DNSMASQ_TEST_CMD: dnsmasq --test
+      DNSMASQ_RESTART_CMD: systemctl restart dnsmasq
+    privileged: true
