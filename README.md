@@ -1,4 +1,4 @@
-# NetCenter 2.0
+# NetCenter 4.0
 
 NetCenter administrează DHCP și o bibliotecă de imagini PXE.
 
@@ -44,4 +44,4 @@ Folosește aplicația numai într-o rețea de încredere.
 
 ## Versiune
 
-2.0.0
+4.0.0
