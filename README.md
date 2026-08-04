@@ -1,4 +1,4 @@
-# NetCenter 4.0
+# NetCenter 4.5
 
 NetCenter administrează DHCP și o bibliotecă de imagini PXE.
 
@@ -6,6 +6,10 @@ NetCenter administrează DHCP și o bibliotecă de imagini PXE.
 
 - administrare rezervări DHCP;
 - scanare automată a imaginilor;
+- import și pornire pentru imagini Linux și Android-x86;
+- import pentru categoriile Other, Rescue și Utilities;
+- pornire Rescue direct din fișiere ISO și EFI;
+- detectare automată kernel, initrd și filesystem Linux;
 - import Windows Setup și WinPE;
 - suport Strelec, AOMEI, EaseUS, MiniTool, Passcape și R-Studio;
 - ștergerea importului fără ștergerea ISO-ului;
