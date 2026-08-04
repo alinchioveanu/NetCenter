@@ -1,3 +1,4 @@
+import os
 from flask import Blueprint, abort, request
 from database import get_db
 from bootprofiles import GENERATORS
@@ -25,7 +26,7 @@ def boot(image_id):
     if row is None:
         abort(404)
 
-    base_url = request.host_url.rstrip("/")
+    base_url = os.environ.get("NETCENTER_BASE_URL", "").strip().rstrip("/") or request.host_url.rstrip("/")
 
     return (
         GENERATORS[row["generator"]](row, base_url),

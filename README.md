@@ -44,4 +44,4 @@ Folosește aplicația numai într-o rețea de încredere.
 
 ## Versiune
 
-4.0.0
+4.5.0

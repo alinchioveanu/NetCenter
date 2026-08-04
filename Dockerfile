@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="NetCenter"
-LABEL org.opencontainers.image.version="4.0.0"
+LABEL org.opencontainers.image.version="4.5.0"
 LABEL org.opencontainers.image.description="Administrare DHCP și imagini PXE"
 
 ENV PYTHONDONTWRITEBYTECODE=1

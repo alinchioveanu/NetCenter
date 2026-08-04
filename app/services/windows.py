@@ -6,6 +6,8 @@ import subprocess
 
 WINDOWS_ROOT = Path("/app/boot/windows")
 WINPE_ROOT = Path("/app/boot/winpe")
+GENERIC_ROOT = Path("/app/boot/rescue")
+LINUX_ROOT = Path("/app/boot/linux")
 
 
 def archive_files(iso: Path) -> list[str]:
@@ -22,7 +24,7 @@ def archive_files(iso: Path) -> list[str]:
     for match in re.finditer(r"^Path = (.+)$", result.stdout, re.MULTILINE):
         value = match.group(1).strip()
 
-        if value != str(iso) and "/" in value:
+        if value != str(iso):
             files.append(value)
 
     return files
@@ -220,6 +222,196 @@ def import_winpe(iso: Path, image_id: int) -> dict:
     }
 
 
+
+def import_generic_image(
+    source: Path,
+    image_id: int,
+) -> dict:
+    supported = {
+        ".iso",
+        ".img",
+        ".efi",
+    }
+
+    suffix = source.suffix.lower()
+
+    if suffix not in supported:
+        raise RuntimeError(
+            f"Tipul {suffix or 'necunoscut'} nu poate fi "
+            "importat generic. Sunt acceptate ISO, IMG și EFI."
+        )
+
+    target = GENERIC_ROOT / str(image_id)
+    target.mkdir(parents=True, exist_ok=True)
+
+    media_name = "media" + suffix
+    destination = target / media_name
+
+    for existing in target.iterdir():
+        if existing.is_file() or existing.is_symlink():
+            existing.unlink()
+
+    # Nu duplicăm imaginile mari. Legătura indică fișierul
+    # original montat read-only în /images.
+    destination.symlink_to(source)
+
+    (target / "selected_media.txt").write_text(
+        media_name + "\n"
+    )
+
+    ready = (
+        destination.is_file()
+        and (target / "selected_media.txt").is_file()
+    )
+
+    return {
+        "target": str(target),
+        "ready": ready,
+        "missing": [] if ready else [media_name],
+        "selected_media": media_name,
+    }
+
+
+def import_linux_image(
+    iso: Path,
+    image_id: int,
+) -> dict:
+    target = LINUX_ROOT / str(image_id)
+    files = archive_files(iso)
+
+    kernel = select_path(files, [
+        "kernel",
+        "casper/vmlinuz",
+    ])
+
+    initrd = select_path(files, [
+        "initrd.img",
+        "casper/initrd",
+        "casper/initrd.lz",
+        "casper/initrd.gz",
+    ])
+
+    filesystem = select_path(files, [
+        "casper/filesystem.squashfs",
+        "live/filesystem.squashfs",
+    ])
+
+    system_sfs = select_path(files, ["system.sfs"])
+    ramdisk = select_path(files, ["ramdisk.img"])
+
+    if system_sfs:
+        boot_type = "android"
+
+        missing = []
+
+        if not kernel:
+            missing.append("kernel")
+
+        if not initrd:
+            missing.append("initrd.img")
+
+        if missing:
+            raise RuntimeError(
+                "ISO Android-x86 incompatibil. Lipsesc: "
+                + ", ".join(missing)
+            )
+
+        selected = [
+            (kernel, "kernel"),
+            (initrd, "initrd"),
+            (system_sfs, "system.sfs"),
+        ]
+
+        if ramdisk:
+            selected.append((ramdisk, "ramdisk.img"))
+
+    else:
+        if not kernel:
+            candidates = sorted(
+                item
+                for item in files
+                if item.lower().startswith("live/")
+                and Path(item).name.lower().startswith("vmlinuz")
+            )
+            kernel = candidates[0] if candidates else None
+
+        if not initrd:
+            candidates = sorted(
+                item
+                for item in files
+                if item.lower().startswith("live/")
+                and Path(item).name.lower().startswith("initrd")
+            )
+            initrd = candidates[0] if candidates else None
+
+        missing = []
+
+        if not kernel:
+            missing.append("kernel Linux")
+
+        if not initrd:
+            missing.append("initrd")
+
+        if not filesystem:
+            missing.append("filesystem.squashfs")
+
+        if missing:
+            raise RuntimeError(
+                "ISO Linux Live incompatibil. Lipsesc: "
+                + ", ".join(missing)
+            )
+
+        if filesystem.lower().startswith("casper/"):
+            boot_type = "casper"
+        else:
+            boot_type = "debian-live"
+
+        selected = [
+            (kernel, "kernel"),
+            (initrd, "initrd"),
+            (filesystem, "filesystem.squashfs"),
+        ]
+
+    if target.exists():
+        shutil.rmtree(target)
+
+    target.mkdir(parents=True, exist_ok=True)
+
+    try:
+        for source, output in selected:
+            extract_file(iso, source, target / output)
+
+        (target / "boot_type.txt").write_text(
+            boot_type + "\n"
+        )
+    except Exception:
+        shutil.rmtree(target, ignore_errors=True)
+        raise
+
+    required = [
+        "kernel",
+        "initrd",
+        "boot_type.txt",
+        (
+            "system.sfs"
+            if boot_type == "android"
+            else "filesystem.squashfs"
+        ),
+    ]
+
+    missing = [
+        name
+        for name in required
+        if not (target / name).is_file()
+    ]
+
+    return {
+        "target": str(target),
+        "ready": not missing,
+        "missing": missing,
+        "boot_type": boot_type,
+    }
+
 def import_windows_iso(
     iso_path: str,
     profile_id: int = 1,
@@ -236,7 +428,28 @@ def import_windows_iso(
 
         return import_winpe(iso, image_id)
 
-    return import_windows_setup(iso)
+    if profile_id == 3:
+        if image_id is None:
+            raise ValueError(
+                "Pentru Linux este obligatoriu image_id."
+            )
+
+        return import_linux_image(iso, image_id)
+
+    if profile_id == 4:
+        if image_id is None:
+            raise ValueError(
+                "Pentru importul generic este obligatoriu image_id."
+            )
+
+        return import_generic_image(iso, image_id)
+
+    if profile_id == 1:
+        return import_windows_setup(iso)
+
+    raise ValueError(
+        f"Profilul {profile_id} nu acceptă import."
+    )
 
 def get_import_target(image) -> Path:
     profile_id = int(image["profile_id"])
@@ -246,6 +459,12 @@ def get_import_target(image) -> Path:
 
     if profile_id == 2:
         return WINPE_ROOT / str(image["id"])
+
+    if profile_id == 3:
+        return LINUX_ROOT / str(image["id"])
+
+    if profile_id == 4:
+        return GENERIC_ROOT / str(image["id"])
 
     raise ValueError(
         f"Profilul {profile_id} nu acceptă import."
@@ -274,6 +493,49 @@ def is_image_imported(image) -> bool:
             for name in required
         )
 
+    if int(image["profile_id"]) == 3:
+        boot_type_file = target / "boot_type.txt"
+
+        if not boot_type_file.is_file():
+            return False
+
+        boot_type = boot_type_file.read_text().strip()
+
+        if boot_type == "android":
+            required = (
+                "kernel",
+                "initrd",
+                "system.sfs",
+                "boot_type.txt",
+            )
+        elif boot_type in ("casper", "debian-live"):
+            required = (
+                "kernel",
+                "initrd",
+                "filesystem.squashfs",
+                "boot_type.txt",
+            )
+        else:
+            return False
+
+        return all(
+            (target / name).is_file()
+            for name in required
+        )
+
+    if int(image["profile_id"]) == 4:
+        selection = target / "selected_media.txt"
+
+        if not selection.is_file():
+            return False
+
+        selected_media = selection.read_text().strip()
+
+        return bool(
+            selected_media
+            and (target / selected_media).is_file()
+        )
+
     required = (
         target / "BCD",
         target / "boot.sdi",
@@ -296,10 +558,20 @@ def is_image_imported(image) -> bool:
 def delete_image_import(image) -> tuple[bool, Path]:
     target = get_import_target(image)
 
-    if int(image["profile_id"]) == 1:
+    profile_id = int(image["profile_id"])
+
+    if profile_id == 1:
         expected_root = WINDOWS_ROOT
-    else:
+    elif profile_id == 2:
         expected_root = WINPE_ROOT
+    elif profile_id == 3:
+        expected_root = LINUX_ROOT
+    elif profile_id == 4:
+        expected_root = GENERIC_ROOT
+    else:
+        raise ValueError(
+            f"Profilul {profile_id} nu acceptă ștergerea importului."
+        )
 
     # Protecție: ținta trebuie să fie copil direct al
     # directorului de import permis.

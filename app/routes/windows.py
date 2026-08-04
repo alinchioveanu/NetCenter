@@ -18,7 +18,7 @@ def import_iso(image_id):
         SELECT id, name, path, profile_id
         FROM boot_images
         WHERE id=?
-          AND profile_id IN (1, 2)
+          AND profile_id IN (1, 2, 3, 4)
         """,
         (image_id,),
     ).fetchone()
@@ -28,24 +28,34 @@ def import_iso(image_id):
     if image is None:
         abort(404)
 
-    result = import_windows_iso(
-        image["path"],
-        profile_id=image["profile_id"],
-        image_id=image["id"],
-    )
+    try:
+        result = import_windows_iso(
+            image["path"],
+            profile_id=image["profile_id"],
+            image_id=image["id"],
+        )
+    except (FileNotFoundError, RuntimeError, ValueError) as error:
+        flash(
+            f"Import eșuat pentru {image['name']}: {error}",
+            "danger",
+        )
+        return redirect(url_for("images"))
 
     if result["ready"]:
-        return f'''
-<!doctype html>
-<meta http-equiv="refresh" content="1; url=/images">
-<div style="font-family:Arial;padding:40px">
-<h2>✔ Import finalizat</h2>
-<p><b>{image["name"]}</b> este pregătită pentru PXE.</p>
-<p>Redirecționare...</p>
-</div>
-'''
+        flash(
+            f"Import finalizat: {image['name']} este pregătită pentru PXE.",
+            "success",
+        )
+    else:
+        missing = result.get("missing", [])
+        details = ", ".join(missing) if missing else "fișiere necunoscute"
 
-    return result
+        flash(
+            f"Import incomplet pentru {image['name']}. Lipsesc: {details}",
+            "danger",
+        )
+
+    return redirect(url_for("images"))
 
 
 @bp.route(
@@ -60,7 +70,7 @@ def delete_import(image_id):
         SELECT id, name, path, profile_id
         FROM boot_images
         WHERE id=?
-          AND profile_id IN (1, 2)
+          AND profile_id IN (1, 2, 3, 4)
         """,
         (image_id,),
     ).fetchone()

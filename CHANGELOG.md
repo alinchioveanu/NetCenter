@@ -1,5 +1,26 @@
 # Changelog
 
+## 4.5.0 — 2026-08-04
+
+### Adăugat
+
+- import și pornire pentru imagini Linux, Android-x86 și Rescue;
+- generator dedicat pentru imagini Rescue ISO și EFI;
+- importul categoriilor Other, Rescue și Utilities.
+
+### Îmbunătățit
+
+- detectarea automată a kernelului, initrd-ului și sistemului de fișiere Linux;
+- generarea scripturilor iPXE pentru mai multe tipuri de distribuții;
+- importul și procesarea imaginilor Windows.
+
+### Corectat
+
+- URL-urile scripturilor de boot folosesc `NETCENTER_BASE_URL`;
+- revenirea în meniul principal pentru imaginile Rescue incomplete;
+- afișarea autorului în bara de navigare.
+
+
 ## 4.0.0 — 2026-08-03
 
 ### Adăugat

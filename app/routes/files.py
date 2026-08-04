@@ -8,6 +8,7 @@ ROOTS = {
     "windows": Path("/app/boot/windows"),
     "winpe": Path("/app/boot/winpe"),
     "linux": Path("/app/boot/linux"),
+    "rescue": Path("/app/boot/rescue"),
 }
 
 

@@ -80,7 +80,7 @@
     </td>
 
     <td>
-        {% if image.profile_id in [1, 2] %}
+        {% if image.profile_id in [1, 2, 3, 4] %}
             {% if image.imported %}
             <form method="post"
                   action="{{ url_for('windows.delete_import', image_id=image.id) }}"
