@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import ipaddress
+import json
 import os
 import re
 import shutil
+import subprocess
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -82,6 +85,188 @@ class DnsmasqManager:
                 })
 
         leases.sort(key=lambda item: (item["hostname"] or "zzz", item["ip"]))
+        return leases
+
+    @staticmethod
+    def _ping_device(ip: str) -> bool:
+        try:
+            result = subprocess.run(
+                ["ping", "-c", "1", "-W", "1", ip],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=2,
+                check=False,
+            )
+            return result.returncode == 0
+        except (OSError, subprocess.TimeoutExpired):
+            return False
+
+    def enrich_device_names(
+        self,
+        leases: list[dict],
+        reservations: list[dict],
+    ) -> list[dict]:
+        from database import get_db
+
+        reservation_by_mac = {
+            item["mac"]: item["hostname"]
+            for item in reservations
+        }
+
+        conn = get_db()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS device_names (
+                mac TEXT PRIMARY KEY,
+                detected_hostname TEXT NOT NULL,
+                detected_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        for lease in leases:
+            mac = self.normalize_mac(lease.get("mac", ""))
+            hostname = (lease.get("hostname") or "").strip()
+            user_name = reservation_by_mac.get(mac, "")
+
+            if not hostname or hostname in {"*", "unknown-device"}:
+                continue
+
+            if user_name and hostname.casefold() == user_name.casefold():
+                continue
+
+            conn.execute("""
+                INSERT INTO device_names (mac, detected_hostname)
+                VALUES (?, ?)
+                ON CONFLICT(mac) DO NOTHING
+            """, (mac, hostname))
+
+        conn.commit()
+
+        rows = conn.execute("""
+            SELECT mac, detected_hostname
+            FROM device_names
+        """).fetchall()
+        conn.close()
+
+        detected_by_mac = {
+            self.normalize_mac(row["mac"]): row["detected_hostname"]
+            for row in rows
+        }
+
+        hardware_by_mac = {}
+        hardware_file = Path(
+            "/var/lib/misc/netcenter-device-models.json"
+        )
+
+        try:
+            hardware_data = json.loads(
+                hardware_file.read_text(encoding="utf-8")
+            )
+
+            hardware_by_mac = {
+                self.normalize_mac(mac): item.get("name", "")
+                for mac, item in hardware_data.get(
+                    "devices",
+                    {},
+                ).items()
+                if isinstance(item, dict)
+            }
+        except (OSError, ValueError, TypeError):
+            hardware_by_mac = {}
+
+        for lease in leases:
+            mac = self.normalize_mac(lease.get("mac", ""))
+            user_name = reservation_by_mac.get(mac, "")
+
+            detected_name = (
+                hardware_by_mac.get(mac, "")
+                or detected_by_mac.get(mac, "")
+            )
+
+            if not detected_name and not user_name:
+                detected_name = (
+                    lease.get("hostname") or ""
+                ).strip()
+
+            lease["device_name"] = detected_name
+            lease["user_name"] = user_name
+
+        return leases
+
+    def refresh_last_seen(self, leases: list[dict]) -> list[dict]:
+        if not leases:
+            return leases
+
+        from database import get_db
+
+        ips = [lease["ip"] for lease in leases]
+
+        with ThreadPoolExecutor(max_workers=min(16, len(ips))) as executor:
+            online_results = list(executor.map(self._ping_device, ips))
+
+        now = datetime.now().astimezone().isoformat(timespec="seconds")
+        online_by_mac = {
+            lease["mac"]: online
+            for lease, online in zip(leases, online_results)
+        }
+
+        conn = get_db()
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS device_last_seen (
+                mac TEXT PRIMARY KEY,
+                last_seen TEXT NOT NULL
+            )
+        """)
+
+        online_macs = [
+            (lease["mac"], now)
+            for lease in leases
+            if online_by_mac[lease["mac"]]
+        ]
+
+        if online_macs:
+            conn.executemany("""
+                INSERT INTO device_last_seen (mac, last_seen)
+                VALUES (?, ?)
+                ON CONFLICT(mac) DO UPDATE SET
+                    last_seen=excluded.last_seen
+            """, online_macs)
+
+        conn.commit()
+
+        macs = [lease["mac"] for lease in leases]
+        placeholders = ",".join("?" for _ in macs)
+
+        rows = conn.execute(
+            f"""
+                SELECT mac, last_seen
+                FROM device_last_seen
+                WHERE mac IN ({placeholders})
+            """,
+            macs,
+        ).fetchall()
+
+        conn.close()
+
+        stored = {
+            row["mac"]: row["last_seen"]
+            for row in rows
+        }
+
+        for lease in leases:
+            lease["online"] = online_by_mac.get(lease["mac"], False)
+            value = stored.get(lease["mac"])
+
+            if value:
+                try:
+                    parsed = datetime.fromisoformat(value)
+                    lease["last_seen"] = parsed.strftime(
+                        "%d.%m.%Y %H:%M:%S"
+                    )
+                except ValueError:
+                    lease["last_seen"] = value
+            else:
+                lease["last_seen"] = "Niciodată"
+
         return leases
 
     def _parse_reservation_line(self, line: str) -> Reservation | None:

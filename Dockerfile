@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL org.opencontainers.image.title="NetCenter"
-LABEL org.opencontainers.image.version="4.5.0"
+LABEL org.opencontainers.image.version="4.6.0"
 LABEL org.opencontainers.image.description="Administrare DHCP și imagini PXE"
 
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -12,6 +12,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         iproute2 \
+        iputils-ping \
         procps \
         systemctl \
         p7zip-full \

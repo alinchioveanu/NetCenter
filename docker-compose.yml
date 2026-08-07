@@ -13,6 +13,7 @@ services:
       - /run/systemd:/run/systemd
       - /var/run/dbus/system_bus_socket:/var/run/dbus/system_bus_socket
       - /usr/local/bin/netcenter-dnsmasq:/usr/local/bin/netcenter-dnsmasq:ro
+      - /run/netcenter-crowdsec:/run/netcenter-crowdsec
       - ${IMAGES_PATH:-./images}:/images:ro
     environment:
       TZ: ${TZ:-UTC}

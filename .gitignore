@@ -63,3 +63,6 @@ uploads/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Timestamped backups
+*.bak-*

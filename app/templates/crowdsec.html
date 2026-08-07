@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CrowdSec - NetCenter</title>
+
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  >
+
+  <style>
+    .sort-button {
+      appearance: none;
+      border: 0;
+      padding: 0;
+      background: transparent;
+      color: inherit;
+      font: inherit;
+      font-weight: inherit;
+      white-space: nowrap;
+      cursor: pointer;
+    }
+
+    .sort-button:hover,
+    .sort-button:focus {
+      text-decoration: underline;
+    }
+
+    .sort-indicator {
+      display: inline-block;
+      min-width: 0.9rem;
+      margin-left: 0.2rem;
+    }
+  </style>
+</head>
+
+<body>
+
+{% include "navbar.html" %}
+
+<div class="container-fluid px-3 px-md-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div>
+      <h1 class="h3 mb-1">IP-uri blocate de CrowdSec</h1>
+      <p class="text-secondary mb-0">
+        Decizii active: {{ decisions|length }}
+      </p>
+    </div>
+
+    <a href="{{ url_for('crowdsec') }}" class="btn btn-outline-secondary">
+      Reîmprospătează
+    </a>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5 mb-3">Blocare manuală IP</h2>
+
+      <form
+        method="post"
+        action="{{ url_for('crowdsec_block') }}"
+        class="row g-3 align-items-end"
+      >
+        <div class="col-12 col-md-3">
+          <label for="block-ip" class="form-label">Adresă IP</label>
+          <input
+            type="text"
+            class="form-control"
+            id="block-ip"
+            name="ip"
+            placeholder="Ex: 203.0.113.10"
+            required
+          >
+        </div>
+
+        <div class="col-12 col-md-2">
+          <label for="block-duration" class="form-label">Durată</label>
+          <select
+            class="form-select"
+            id="block-duration"
+            name="duration"
+          >
+            <option value="1h">1 oră</option>
+            <option value="4h">4 ore</option>
+            <option value="12h">12 ore</option>
+            <option value="24h" selected>24 ore</option>
+            <option value="72h">3 zile</option>
+            <option value="168h">7 zile</option>
+            <option value="720h">30 zile</option>
+          </select>
+        </div>
+
+        <div class="col-12 col-md-5">
+          <label for="block-reason" class="form-label">Motiv</label>
+          <input
+            type="text"
+            class="form-control"
+            id="block-reason"
+            name="reason"
+            maxlength="120"
+            value="Blocare manuală din NetCenter"
+          >
+        </div>
+
+        <div class="col-12 col-md-2 d-grid">
+          <button type="submit" class="btn btn-danger">
+            Blochează IP
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="alert alert-{{ category }} alert-dismissible fade show">
+        {{ message }}
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="alert"
+          aria-label="Închide"
+        ></button>
+      </div>
+    {% endfor %}
+  {% endwith %}
+
+  {% if error %}
+    <div class="alert alert-danger">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  {% if decisions %}
+    <div class="table-responsive">
+      <table id="crowdsec-table" class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+          <tr>
+            <th>
+              <button class="sort-button" data-column="0" data-type="ip">
+                IP <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="1" data-type="text">
+                Țară <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="2" data-type="text">
+                Organizație <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="3" data-type="text">
+                Scenariu <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="4" data-type="text">
+                Origine <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="5" data-type="duration">
+                Durată rămasă <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th>
+              <button class="sort-button" data-column="6" data-type="date">
+                Creată <span class="sort-indicator">↕</span>
+              </button>
+            </th>
+            <th class="text-end">Acțiune</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% for item in decisions %}
+            <tr>
+              <td>
+                <a
+                  href="{{ url_for('crowdsec_ip', ip=item.ip) }}"
+                  title="Vezi informații despre {{ item.ip }}"
+                >
+                  <code>{{ item.ip }}</code>
+                </a>
+              </td>
+              <td>{{ item.country or "-" }}</td>
+              <td>{{ item.as_name or "-" }}</td>
+              <td class="text-break">{{ item.scenario or "-" }}</td>
+              <td>{{ item.origin or "-" }}</td>
+              <td>{{ item.duration or "-" }}</td>
+              <td>
+                {% if item.created_at %}
+                  {% set created = item.created_at.split("T") %}
+                  <div>{{ created[0] }}</div>
+                  <div>
+                    <small>
+                      {{ created[1].replace("Z", "") if created|length > 1 else "" }}
+                    </small>
+                  </div>
+                {% else %}
+                  -
+                {% endif %}
+              </td>
+              <td class="text-end">
+                <form
+                  method="post"
+                  action="{{ url_for('crowdsec_unblock') }}"
+                  onsubmit="return confirm('Deblochezi IP-ul {{ item.ip }}?');"
+                >
+                  <input type="hidden" name="ip" value="{{ item.ip }}">
+                  <button type="submit" class="btn btn-sm btn-danger">
+                    Deblochează
+                  </button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% elif not error %}
+    <div class="alert alert-success">
+      Nu există IP-uri blocate în acest moment.
+    </div>
+  {% endif %}
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  const table = document.getElementById("crowdsec-table");
+
+  if (!table) {
+    return;
+  }
+
+  const tbody = table.querySelector("tbody");
+  let activeColumn = -1;
+  let ascending = true;
+
+  function durationToSeconds(value) {
+    const units = {
+      y: 31536000,
+      d: 86400,
+      h: 3600,
+      m: 60,
+      s: 1
+    };
+
+    let total = 0;
+
+    for (const match of value.toLowerCase().matchAll(/(\d+(?:\.\d+)?)\s*([ydhms])/g)) {
+      total += Number(match[1]) * units[match[2]];
+    }
+
+    return total;
+  }
+
+  function ipv4ToNumber(value) {
+    const parts = value.trim().split(".");
+
+    if (parts.length !== 4) {
+      return null;
+    }
+
+    let result = 0;
+
+    for (const part of parts) {
+      const number = Number(part);
+
+      if (!Number.isInteger(number) || number < 0 || number > 255) {
+        return null;
+      }
+
+      result = result * 256 + number;
+    }
+
+    return result;
+  }
+
+  function compareValues(left, right, type) {
+    if (type === "duration") {
+      return durationToSeconds(left) - durationToSeconds(right);
+    }
+
+    if (type === "date") {
+      const leftDate = Date.parse(left);
+      const rightDate = Date.parse(right);
+
+      if (!Number.isNaN(leftDate) && !Number.isNaN(rightDate)) {
+        return leftDate - rightDate;
+      }
+    }
+
+    if (type === "ip") {
+      const leftIp = ipv4ToNumber(left);
+      const rightIp = ipv4ToNumber(right);
+
+      if (leftIp !== null && rightIp !== null) {
+        return leftIp - rightIp;
+      }
+    }
+
+    return left.localeCompare(right, "ro", {
+      numeric: true,
+      sensitivity: "base"
+    });
+  }
+
+  document.querySelectorAll(".sort-button").forEach(function (button) {
+    button.addEventListener("click", function () {
+      const column = Number(button.dataset.column);
+      const type = button.dataset.type || "text";
+
+      if (activeColumn === column) {
+        ascending = !ascending;
+      } else {
+        activeColumn = column;
+        ascending = true;
+      }
+
+      const rows = Array.from(tbody.querySelectorAll("tr"));
+
+      rows.sort(function (leftRow, rightRow) {
+        const left = leftRow.cells[column].textContent.trim();
+        const right = rightRow.cells[column].textContent.trim();
+        const comparison = compareValues(left, right, type);
+
+        return ascending ? comparison : -comparison;
+      });
+
+      rows.forEach(function (row) {
+        tbody.appendChild(row);
+      });
+
+      document.querySelectorAll(".sort-indicator").forEach(function (indicator) {
+        indicator.textContent = "";
+      });
+
+      button.querySelector(".sort-indicator").textContent =
+        ascending ? "▲" : "▼";
+    });
+  });
+});
+</script>
+
+</body>
+</html>

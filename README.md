@@ -48,4 +48,4 @@ Folosește aplicația numai într-o rețea de încredere.
 
 ## Versiune
 
-4.5.0
+4.6.0

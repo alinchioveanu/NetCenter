@@ -11,7 +11,7 @@ def get_profiles():
             description,
             generator
         FROM boot_profiles
-        ORDER BY name
+        ORDER BY id
     """).fetchall()
 
     conn.close()

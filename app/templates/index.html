@@ -9,6 +9,42 @@
         body { background: #f4f6f9; }
         .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
         .table td, .table th { vertical-align: middle; }
+
+        th.sortable {
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+
+        th.sortable:hover {
+            background-color: rgba(13, 110, 253, .08);
+        }
+
+        th.sortable:focus-visible {
+            outline: 2px solid var(--bs-primary);
+            outline-offset: -2px;
+        }
+
+        .sort-indicator {
+            display: inline-block;
+            width: 1rem;
+            margin-left: .25rem;
+            color: var(--bs-secondary-color);
+        }
+
+        th.sortable[data-direction="asc"] .sort-indicator::after {
+            content: "▲";
+            color: var(--bs-primary);
+        }
+
+        th.sortable[data-direction="desc"] .sort-indicator::after {
+            content: "▼";
+            color: var(--bs-primary);
+        }
+
+        th.sortable:not([data-direction]) .sort-indicator::after {
+            content: "↕";
+        }
     </style>
 </head>
 <body>
@@ -54,21 +90,66 @@
             <div class="card shadow-sm">
                 <div class="card-header"><strong>Lease-uri active</strong></div>
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table id="leases-table"
+                           class="table table-hover table-striped mb-0">
                         <thead>
                         <tr>
-                            <th>Host</th>
-                            <th>IP</th>
-                            <th>MAC</th>
-                            <th>Status</th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="text">
+                                Nume dispozitiv <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="text">
+                                Nume utilizator <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="ip">
+                                IP <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="text">
+                                MAC <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="text">
+                                Status <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="date">
+                                Last seen <span class="sort-indicator"></span>
+                            </th>
                             <th>Acțiune</th>
                         </tr>
                         </thead>
                         <tbody>
                         {% for lease in leases %}
                         <tr>
-                            <td>{{ lease.hostname or "Necunoscut" }}</td>
-                            <td class="mono">{{ lease.ip }}</td>
+                            <td>
+                                {% if lease.device_name and lease.device_name != "Nedetectat" %}
+                                {{ lease.device_name }}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lease.user_name %}
+                                {{ lease.user_name }}
+                                {% else %}
+                                <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="mono">
+                                <a href="{{ url_for('dhcp_device', ip=lease.ip) }}"
+                                   class="text-decoration-none">
+                                    {{ lease.ip }}
+                                </a>
+                            </td>
                             <td class="mono"><small>{{ lease.mac }}</small></td>
                             <td>
                                 {% if lease.reserved %}
@@ -76,6 +157,17 @@
                                 {% else %}
                                 <span class="badge bg-secondary">Dinamic</span>
                                 {% endif %}
+                            </td>
+                            <td class="text-nowrap">
+                                {% if lease.online %}
+                                <span class="badge bg-success mb-1">Online</span>
+                                {% else %}
+                                <span class="badge bg-secondary mb-1">Offline</span>
+                                {% endif %}
+                                <br>
+                                <small class="text-muted">
+                                    {{ lease.last_seen }}
+                                </small>
                             </td>
                             <td>
                                 <form method="post" action="/reserve" class="d-inline">
@@ -97,11 +189,20 @@
             <div class="card shadow-sm">
                 <div class="card-header"><strong>Rezervări DHCP</strong></div>
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped mb-0">
+                    <table id="reservations-table"
+                           class="table table-hover table-striped mb-0">
                         <thead>
                         <tr>
-                            <th>Host</th>
-                            <th>IP</th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="text">
+                                Host <span class="sort-indicator"></span>
+                            </th>
+                            <th class="sortable"
+                                tabindex="0"
+                                data-type="ip">
+                                IP <span class="sort-indicator"></span>
+                            </th>
                             <th></th>
                         </tr>
                         </thead>
@@ -132,6 +233,127 @@
         </div>
     </div>
 </div>
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    const collator = new Intl.Collator("ro", {
+        numeric: true,
+        sensitivity: "base"
+    });
+
+    function normalizedText(cell) {
+        return cell.textContent.trim().replace(/\s+/g, " ");
+    }
+
+    function ipValue(value) {
+        const parts = value.match(/\d+/g) || [];
+
+        return parts.reduce(
+            (total, part) => total * 256 + Number(part),
+            0
+        );
+    }
+
+    function dateValue(value) {
+        if (!value || value.includes("Niciodată")) {
+            return 0;
+        }
+
+        const match = value.match(
+            /(\d{2})\.(\d{2})\.(\d{4})\s+(\d{2}):(\d{2}):(\d{2})/
+        );
+
+        if (!match) {
+            return 0;
+        }
+
+        const [, day, month, year, hour, minute, second] = match;
+
+        return new Date(
+            Number(year),
+            Number(month) - 1,
+            Number(day),
+            Number(hour),
+            Number(minute),
+            Number(second)
+        ).getTime();
+    }
+
+    function valueFor(cell, type) {
+        const value = normalizedText(cell);
+
+        if (type === "ip") {
+            return ipValue(value);
+        }
+
+        if (type === "date") {
+            return dateValue(value);
+        }
+
+        return value;
+    }
+
+    function sortTable(table, header) {
+        const headers = [...table.querySelectorAll("thead th")];
+        const columnIndex = headers.indexOf(header);
+        const type = header.dataset.type || "text";
+        const currentDirection = header.dataset.direction;
+        const direction = currentDirection === "asc" ? "desc" : "asc";
+        const multiplier = direction === "asc" ? 1 : -1;
+        const tbody = table.querySelector("tbody");
+        const rows = [...tbody.querySelectorAll("tr")];
+
+        headers.forEach(item => {
+            item.removeAttribute("data-direction");
+            item.removeAttribute("aria-sort");
+        });
+
+        header.dataset.direction = direction;
+        header.setAttribute(
+            "aria-sort",
+            direction === "asc" ? "ascending" : "descending"
+        );
+
+        rows.sort((rowA, rowB) => {
+            const valueA = valueFor(rowA.cells[columnIndex], type);
+            const valueB = valueFor(rowB.cells[columnIndex], type);
+
+            if (typeof valueA === "number" &&
+                typeof valueB === "number") {
+                return (valueA - valueB) * multiplier;
+            }
+
+            return collator.compare(
+                String(valueA),
+                String(valueB)
+            ) * multiplier;
+        });
+
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    document.querySelectorAll(
+        "#leases-table th.sortable, " +
+        "#reservations-table th.sortable"
+    ).forEach(header => {
+        const table = header.closest("table");
+
+        header.setAttribute("role", "button");
+        header.setAttribute("aria-label", "Sortează după această coloană");
+
+        header.addEventListener("click", () => {
+            sortTable(table, header);
+        });
+
+        header.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                sortTable(table, header);
+            }
+        });
+    });
+});
+</script>
+
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,15 +1,62 @@
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
   <div class="container-fluid">
-    <a class="navbar-brand" href="/">
-      NetCenter
-      <span class="badge bg-secondary ms-1">v4.5.0 - by Alin Chioveanu</span>
+
+    <a class="navbar-brand d-flex align-items-center flex-wrap gap-1 me-2"
+       href="/">
+      <span>NetCenter</span>
+      <span class="badge bg-secondary netcenter-version">
+        v4.6.0 - by Alin Chioveanu
+      </span>
     </a>
 
-    <div class="navbar-nav">
-      <a class="nav-link" href="/">DHCP</a>
-      <a class="nav-link" href="/images">Boot Images</a>
-      <a class="nav-link" href="/profiles">Boot Profiles</a>
-      <a class="nav-link" href="/lab">Laborator testare</a>
+    <button class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#netcenterNavbar"
+            aria-controls="netcenterNavbar"
+            aria-expanded="false"
+            aria-label="Deschide meniul">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="netcenterNavbar">
+      <div class="navbar-nav ms-auto">
+        <a class="nav-link" href="/">DHCP</a>
+        <a class="nav-link" href="/images">Boot Images</a>
+        <a class="nav-link" href="/crowdsec">CrowdSec</a>
+        <a class="nav-link" href="/profiles">Boot Profiles</a>
+        <a class="nav-link" href="/lab">Laborator testare</a>
+      </div>
     </div>
+
   </div>
 </nav>
+
+<style>
+  .netcenter-version {
+    font-size: 0.75rem;
+    white-space: normal;
+  }
+
+  @media (max-width: 575.98px) {
+    .navbar-brand {
+      max-width: calc(100% - 62px);
+      font-size: 1rem;
+    }
+
+    .netcenter-version {
+      font-size: 0.65rem;
+    }
+
+    .navbar-collapse {
+      padding-top: 0.75rem;
+    }
+
+    .navbar-nav .nav-link {
+      padding: 0.65rem 0;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+  }
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
