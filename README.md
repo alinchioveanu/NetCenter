@@ -1,4 +1,4 @@
-# NetCenter 4.5
+# NetCenter 4.6
 
 NetCenter administrează DHCP și o bibliotecă de imagini PXE.
 
