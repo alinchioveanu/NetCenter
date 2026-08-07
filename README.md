@@ -4,7 +4,13 @@ NetCenter administrează DHCP și o bibliotecă de imagini PXE.
 
 ## Funcții
 
-- administrare rezervări DHCP;
+- administrare rezervări și lease-uri DHCP;
+- monitorizarea stării Online/Offline și a ultimei activități a dispozitivelor DHCP;
+- identificarea dispozitivelor DHCP și afișarea numelui și modelului;
+- pagină de informații pentru fiecare dispozitiv DHCP;
+- integrare CrowdSec pentru vizualizarea adreselor IP blocate;
+- blocarea și deblocarea adreselor IP direct din NetCenter;
+- informații și lookup pentru adresele IP CrowdSec;
 - scanare automată a imaginilor;
 - import și pornire pentru imagini Linux și Android-x86;
 - import pentru categoriile Other, Rescue și Utilities;
